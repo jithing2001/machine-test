@@ -18,17 +18,20 @@ class HomeScreen extends StatelessWidget {
         centerTitle: true,
         actions: [
           const Icon(Icons.location_on),
-          FutureBuilder(
-              future: LocationService()
-                  .getPlaceName(location!.latitude, location!.longitude),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const Text('Fetching..');
-                } else if (snap.hasError) {
-                  return const Text('Not available');
-                }
-                return Text(snap.data!);
-              })
+          StreamBuilder<String>(
+            stream: LocationService().getPlaceName(),
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const Text('Fetching..');
+              } else if (snap.hasError) {
+                return const Text('Not available');
+              }
+              return Text(snap.data ?? 'Not available');
+            },
+          ),
+          const SizedBox(
+            width: 10,
+          )
         ],
       ),
       body: RefreshIndicator(
@@ -95,7 +98,9 @@ class HomeScreen extends StatelessWidget {
                         onTap: () {
                           Navigator.of(context).push(MaterialPageRoute(
                             builder: (context) => UserDetail(
-                                user: userDataProvider.userData[index]),
+                              user: userDataProvider.userData[index],
+                              location: location,
+                            ),
                           ));
                         },
                       ),

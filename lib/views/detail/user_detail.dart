@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'package:provider/provider.dart';
 import 'package:test/controllers/provider/user_details_provider.dart';
 import 'package:test/services/db_services/hive_db.dart';
+import 'package:test/services/location_service/location_service.dart';
 
 class UserDetail extends StatelessWidget {
-  const UserDetail({super.key, required this.user});
+  UserDetail({super.key, required this.user, required this.location});
 
   final UserModel user;
+  Position? location;
+  double? lastDistance;
+  bool isFirstFetch = true;
 
   @override
   Widget build(BuildContext context) {
     Provider.of<UserDataProvider>(context, listen: false).fetchTodos(user.id!);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -29,6 +35,30 @@ class UserDetail extends StatelessWidget {
               children: [
                 const SizedBox(height: 10),
                 _buildDetailRow(Icons.person, 'Name', user.name!),
+                StreamBuilder(
+                  stream: LocationService().calculateDistance(
+                      double.parse(user.address!.geo!.lat!),
+                      double.parse(user.address!.geo!.lng!)),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting &&
+                        isFirstFetch) {
+                      return _buildDetailRow(
+                          Icons.social_distance, 'Distance', 'Fetching');
+                    } else if (snap.hasError) {
+                      return _buildDetailRow(
+                          Icons.social_distance, 'Distance', 'Not Available');
+                    } else if (snap.hasData) {
+                      if (lastDistance != snap.data) {
+                        lastDistance = snap.data;
+                        isFirstFetch = false;
+                      }
+                      return _buildDetailRow(Icons.social_distance, 'Distance',
+                          "${snap.data} Kms");
+                    }
+                    return _buildDetailRow(
+                        Icons.social_distance, 'Distance', "$lastDistance Kms");
+                  },
+                ),
                 _buildDetailRow(
                     Icons.account_circle, 'Username', user.username!),
                 _buildDetailRow(Icons.email, 'Email', user.email!),

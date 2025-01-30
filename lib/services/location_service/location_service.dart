@@ -1,32 +1,60 @@
+import 'dart:async';
+
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
-  Future<String> getPlaceName(double latitude, double longitude) async {
-    try {
-      List<Placemark> placemarks =
-          await placemarkFromCoordinates(latitude, longitude);
+  Stream<String> getPlaceName() async* {
+    String? lastPlace; // Store the last known place name
 
-      Placemark place = placemarks.first;
+    while (true) {
+      try {
+        print('Fetching location...');
 
-      String placeName = '${place.street}';
+        // Get the current position
+        Position position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high);
 
-      return placeName;
-    } catch (e) {
-      return 'Not available';
+        // Get place name from coordinates
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        String placeName = placemarks.first.locality ?? "Unknown";
+
+        // Emit only if the place name has changed
+        if (placeName != lastPlace) {
+          lastPlace = placeName;
+          yield placeName; // Update the stream
+        }
+      } catch (e) {
+        yield 'Not available';
+      }
+
+      await Future.delayed(const Duration(seconds: 5));
     }
   }
 
-  double calculateDistance(double startLatitude, double startLongitude,
-      double endLatitude, double endLongitude) {
-    double distanceInMeters = Geolocator.distanceBetween(
-      startLatitude,
-      startLongitude,
-      endLatitude,
-      endLongitude,
-    );
+  Stream<double> calculateDistance(
+      double endLatitude, double endLongitude) async* {
+    while (true) {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
 
-    // Convert meters to kilometers and return
-    return distanceInMeters / 1000;
+      double distanceInMeters = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        endLatitude,
+        endLongitude,
+      );
+
+      double distanceInKm = distanceInMeters / 1000;
+      double formattedDistance = double.parse(distanceInKm.toStringAsFixed(2));
+
+      yield formattedDistance;
+
+      await Future.delayed(const Duration(seconds: 2));
+    }
   }
 }
